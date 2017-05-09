@@ -35,9 +35,9 @@ class ProposalLayer(caffe.Layer):
             print 'anchors:'
             print self._anchors
 
-        # rois blob: holds R regions of interest, each is a 5-tuple
-        # (n, x1, y1, x2, y2) specifying an image batch index n and a
-        # rectangle (x1, y1, x2, y2)
+        # rois blob: holds R regions of interest, each is a 4-tuple
+        # (n, x1, y1, r) specifying an image batch index n and a
+        # circle (x1, y1, r)
         top[0].reshape(1, 5)
 
         # scores blob: holds scores for R regions of interest
@@ -50,8 +50,8 @@ class ProposalLayer(caffe.Layer):
         # for each (H, W) location i
         #   generate A anchor boxes centered on cell i
         #   apply predicted bbox deltas at cell i to each of the A anchors
-        # clip predicted boxes to image
-        # remove predicted boxes with either height or width < threshold
+        # shrink predicted circles to image
+        # remove predicted circles with radius < threshold
         # sort all (proposal, score) pairs by score from highest to lowest
         # take top pre_nms_topN proposals before NMS
         # apply NMS with threshold 0.7 to remaining proposals
@@ -78,38 +78,38 @@ class ProposalLayer(caffe.Layer):
             print 'scale: {}'.format(im_info[2])
 
         # 1. Generate proposals from bbox deltas and shifted anchors
-        height, width = scores.shape[-2:]
+        radius = scores.shape[-1:]
 
         if DEBUG:
             print 'score map size: {}'.format(scores.shape)
 
         # Enumerate all shifts
-        shift_x = np.arange(0, width) * self._feat_stride
-        shift_y = np.arange(0, height) * self._feat_stride
+        shift_x = np.arange(0, 2*radius) * self._feat_stride
+        shift_y = np.arange(0, 2*radius) * self._feat_stride
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
-        shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
-                            shift_x.ravel(), shift_y.ravel())).transpose()
+        shifts = np.vstack((shift_x.ravel(), shift_y.ravel(), 0)).transpose()
 
         # Enumerate all shifted anchors:
         #
-        # add A anchors (1, A, 4) to
-        # cell K shifts (K, 1, 4) to get
-        # shift anchors (K, A, 4)
-        # reshape to (K*A, 4) shifted anchors
+        # add A anchors (1, A, 3) to
+        # cell K shifts (K, 1, 3) to get
+        # shift anchors (K, A, 3)
+        # reshape to (K*A, 3) shifted anchors
         A = self._num_anchors
         K = shifts.shape[0]
-        anchors = self._anchors.reshape((1, A, 4)) + \
-                  shifts.reshape((1, K, 4)).transpose((1, 0, 2))
-        anchors = anchors.reshape((K * A, 4))
+        anchors = self._anchors.reshape((1, A, 3)) + \
+                  shifts.reshape((1, K, 3)).transpose((1, 0, 2))
+        anchors = anchors.reshape((K * A, 3))
 
         # Transpose and reshape predicted bbox transformations to get them
         # into the same order as the anchors:
         #
-        # bbox deltas will be (1, 4 * A, H, W) format
-        # transpose to (1, H, W, 4 * A)
-        # reshape to (1 * H * W * A, 4) where rows are ordered by (h, w, a)
+        # bbox deltas will be (1, 3 * A, H, W) format
+        # transpose to (1, H, W, 3 * A)
+        # reshape to (1 * H * W * A, 3) where rows are ordered by (h, w, a)
         # in slowest to fastest order
-        bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
+        # TODO: check reshape
+        bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 3))  # change reshape(-1, 4) -> reshape(-1, 3)
 
         # Same story for the scores:
         #
@@ -170,7 +170,6 @@ class ProposalLayer(caffe.Layer):
 
 def _filter_boxes(boxes, min_size):
     """Remove all boxes with any side smaller than min_size."""
-    ws = boxes[:, 2] - boxes[:, 0] + 1
-    hs = boxes[:, 3] - boxes[:, 1] + 1
-    keep = np.where((ws >= min_size) & (hs >= min_size))[0]
+    rs = boxes[:, 2]
+    keep = np.where(rs >= min_size)[0]
     return keep

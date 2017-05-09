@@ -23,9 +23,8 @@ class RoIDataLayer(caffe.Layer):
     def _shuffle_roidb_inds(self):
         """Randomly permute the training roidb."""
         if cfg.TRAIN.ASPECT_GROUPING:
-            widths = np.array([r['width'] for r in self._roidb])
-            heights = np.array([r['height'] for r in self._roidb])
-            horz = (widths >= heights)
+            radiuses = np.array([r['radius'] for r in self._roidb])
+            horz = (radiuses >= radiuses)
             vert = np.logical_not(horz)
             horz_inds = np.where(horz)[0]
             vert_inds = np.where(vert)[0]
@@ -102,14 +101,14 @@ class RoIDataLayer(caffe.Layer):
             self._name_to_top_map['im_info'] = idx
             idx += 1
 
-            top[idx].reshape(1, 4)
+            top[idx].reshape(1, 3)
             self._name_to_top_map['gt_boxes'] = idx
             idx += 1
         else: # not using RPN
-            # rois blob: holds R regions of interest, each is a 5-tuple
-            # (n, x1, y1, x2, y2) specifying an image batch index n and a
-            # rectangle (x1, y1, x2, y2)
-            top[idx].reshape(1, 5)
+            # rois blob: holds R regions of interest, each is a 4-tuple
+            # (n, x1, y1, r) specifying an image batch index n and a
+            # rectangle (x1, y1, r)
+            top[idx].reshape(1, 4)
             self._name_to_top_map['rois'] = idx
             idx += 1
 
@@ -122,17 +121,17 @@ class RoIDataLayer(caffe.Layer):
             if cfg.TRAIN.BBOX_REG:
                 # bbox_targets blob: R bounding-box regression targets with 4
                 # targets per class
-                top[idx].reshape(1, self._num_classes * 4)
+                top[idx].reshape(1, self._num_classes * 3)
                 self._name_to_top_map['bbox_targets'] = idx
                 idx += 1
 
                 # bbox_inside_weights blob: At most 4 targets per roi are active;
-                # thisbinary vector sepcifies the subset of active targets
-                top[idx].reshape(1, self._num_classes * 4)
+                # this binary vector sepcifies the subset of active targets
+                top[idx].reshape(1, self._num_classes * 3)
                 self._name_to_top_map['bbox_inside_weights'] = idx
                 idx += 1
 
-                top[idx].reshape(1, self._num_classes * 4)
+                top[idx].reshape(1, self._num_classes * 3)
                 self._name_to_top_map['bbox_outside_weights'] = idx
                 idx += 1
 

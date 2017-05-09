@@ -68,8 +68,8 @@ def add_bbox_regression_targets(roidb):
         # Compute values needed for means and stds
         # var(x) = E(x^2) - E(x)^2
         class_counts = np.zeros((num_classes, 1)) + cfg.EPS
-        sums = np.zeros((num_classes, 4))
-        squared_sums = np.zeros((num_classes, 4))
+        sums = np.zeros((num_classes, 3))
+        squared_sums = np.zeros((num_classes, 3))
         for im_i in xrange(num_images):
             targets = roidb[im_i]['bbox_targets']
             for cls in xrange(1, num_classes):
@@ -112,7 +112,7 @@ def _compute_targets(rois, overlaps, labels):
     gt_inds = np.where(overlaps == 1)[0]
     if len(gt_inds) == 0:
         # Bail if the image has no ground-truth ROIs
-        return np.zeros((rois.shape[0], 5), dtype=np.float32)
+        return np.zeros((rois.shape[0], 4), dtype=np.float32)
     # Indices of examples for which we try to make predictions
     ex_inds = np.where(overlaps >= cfg.TRAIN.BBOX_THRESH)[0]
 
@@ -127,7 +127,7 @@ def _compute_targets(rois, overlaps, labels):
     gt_rois = rois[gt_inds[gt_assignment], :]
     ex_rois = rois[ex_inds, :]
 
-    targets = np.zeros((rois.shape[0], 5), dtype=np.float32)
+    targets = np.zeros((rois.shape[0], 4), dtype=np.float32)
     targets[ex_inds, 0] = labels[ex_inds]
     targets[ex_inds, 1:] = bbox_transform(ex_rois, gt_rois)
     return targets

@@ -6,6 +6,7 @@
 # --------------------------------------------------------
 
 import numpy as np
+import math
 
 # Verify that we compute the same anchors as Shaoqing's matlab implementation:
 #
@@ -34,66 +35,59 @@ import numpy as np
 #       [ -79., -167.,   96.,  184.],
 #       [-167., -343.,  184.,  360.]])
 
-def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
+def generate_anchors(base_size=8, ratios=[0.5, 1, 2],  # change base_size to use as radius
                      scales=2**np.arange(3, 6)):
     """
     Generate anchor (reference) windows by enumerating aspect ratios X
     scales wrt a reference (0, 0, 15, 15) window.
     """
 
-    base_anchor = np.array([1, 1, base_size, base_size]) - 1
+    base_anchor = np.array([base_size, base_size, base_size]) - 1  # change to use circle
     ratio_anchors = _ratio_enum(base_anchor, ratios)
     anchors = np.vstack([_scale_enum(ratio_anchors[i, :], scales)
                          for i in xrange(ratio_anchors.shape[0])])
     return anchors
 
-def _whctrs(anchor):
+def _whctrs(anchor):  # change implementation
     """
-    Return width, height, x center, and y center for an anchor (window).
+    Return radius, x center, and y center for an anchor (window).
     """
 
-    w = anchor[2] - anchor[0] + 1
-    h = anchor[3] - anchor[1] + 1
-    x_ctr = anchor[0] + 0.5 * (w - 1)
-    y_ctr = anchor[1] + 0.5 * (h - 1)
-    return w, h, x_ctr, y_ctr
+    r = anchor[2]
+    x_ctr = anchor[0]
+    y_ctr = anchor[1]
+    return r, x_ctr, y_ctr
 
-def _mkanchors(ws, hs, x_ctr, y_ctr):
+def _mkanchors(rs, x_ctr, y_ctr):  # change implementation
     """
-    Given a vector of widths (ws) and heights (hs) around a center
+    Given a vector of radiuses (rs) around a center
     (x_ctr, y_ctr), output a set of anchors (windows).
     """
 
-    ws = ws[:, np.newaxis]
-    hs = hs[:, np.newaxis]
-    anchors = np.hstack((x_ctr - 0.5 * (ws - 1),
-                         y_ctr - 0.5 * (hs - 1),
-                         x_ctr + 0.5 * (ws - 1),
-                         y_ctr + 0.5 * (hs - 1)))
+    rs = rs[:, np.newaxis]
+    anchors = np.hstack((x_ctr, y_ctr, rs))
     return anchors
 
-def _ratio_enum(anchor, ratios):
+def _ratio_enum(anchor, ratios):  # change implementation
     """
     Enumerate a set of anchors for each aspect ratio wrt an anchor.
     """
 
-    w, h, x_ctr, y_ctr = _whctrs(anchor)
-    size = w * h
+    r, x_ctr, y_ctr = _whctrs(anchor)
+    size = math.pi * r**2
     size_ratios = size / ratios
-    ws = np.round(np.sqrt(size_ratios))
-    hs = np.round(ws * ratios)
-    anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
+    rs = np.round(np.sqrt(size_ratios) / math.pi)
+    anchors = _mkanchors(rs, x_ctr, y_ctr)
     return anchors
 
-def _scale_enum(anchor, scales):
+def _scale_enum(anchor, scales):  # change implementation
     """
     Enumerate a set of anchors for each scale wrt an anchor.
     """
 
-    w, h, x_ctr, y_ctr = _whctrs(anchor)
-    ws = w * scales
-    hs = h * scales
-    anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
+    r, x_ctr, y_ctr = _whctrs(anchor)
+    rs = r * scales
+    anchors = _mkanchors(rs, x_ctr, y_ctr)
     return anchors
 
 if __name__ == '__main__':
