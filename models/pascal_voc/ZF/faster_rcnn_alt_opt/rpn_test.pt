@@ -191,7 +191,7 @@ layer {
   bottom: "rpn_conv1"
   top: "rpn_bbox_pred"
   convolution_param {
-    num_output: 36   # 4 * 9(anchors)
+    num_output: 27   # 4 * 9(anchors) # change 4 --> 3
     kernel_size: 1 pad: 0 stride: 1
   }
 }
